@@ -583,7 +583,7 @@ validator.groupNew workchain:int shard:long vertical_seqno:int last_key_block_se
 validator.telemetryOverlayId zero_state_file_hash:int256 = validator.TelemetryOverlayId;
 validator.telemetry flags:# timestamp:double adnl_id:int256
     node_version:string os_version:string
-    ram_size:long cpu_cores:int = validator.Telemetry;
+    ram_size:long cpu_cores:int node_threads:int = validator.Telemetry;
 
 ---functions---
 

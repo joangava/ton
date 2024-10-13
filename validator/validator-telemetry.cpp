@@ -38,11 +38,11 @@ void ValidatorTelemetry::start_up() {
 
   os_version_ = td::get_operating_system_version().str();
 
-  auto r_ram_size = td::get_total_ram();
-  if (r_ram_size.is_error()) {
-    LOG(WARNING) << "Cannot get RAM size: " << r_ram_size.move_as_error();
+  auto r_total_mem_stat = td::get_total_mem_stat();
+  if (r_total_mem_stat.is_error()) {
+    LOG(WARNING) << "Cannot get RAM size: " << r_total_mem_stat.move_as_error();
   } else {
-    ram_size_ = r_ram_size.move_as_ok();
+    ram_size_ = r_total_mem_stat.ok().total_ram;
   }
 
   auto r_cpu_cores = td::get_cpu_cores();
@@ -94,7 +94,7 @@ void ValidatorTelemetry::init() {
                           std::make_unique<Callback>(), std::move(rules), R"({ "type": "telemetry" })");
   LOG(DEBUG) << "Creating validator telemetry overlay for adnl id " << local_id_ << ", overlay_id=" << overlay_id_;
 
-  alarm_timestamp().relax(send_telemetry_at_ = td::Timestamp::in(td::Random::fast(60.0, 120.0)));
+  alarm_timestamp().relax(send_telemetry_at_ = td::Timestamp::in(td::Random::fast(30.0, 60.0)));
 }
 
 void ValidatorTelemetry::update_validators(td::Ref<MasterchainState> state) {
@@ -143,6 +143,10 @@ void ValidatorTelemetry::send_telemetry() {
   telemetry->os_version_ = os_version_;
   telemetry->ram_size_ = ram_size_;
   telemetry->cpu_cores_ = cpu_cores_;
+  telemetry->node_threads_ = (td::int32)td::actor::SchedulerContext::get()
+                                 ->scheduler_group()
+                                 ->schedulers.at(td::actor::SchedulerContext::get()->get_scheduler_id().value())
+                                 .cpu_threads_count;
 
   td::BufferSlice data = serialize_tl_object(telemetry, true);
   LOG(DEBUG) << "Sending validator telemetry for adnl id " << local_id_ << ", size=" << data.size();
