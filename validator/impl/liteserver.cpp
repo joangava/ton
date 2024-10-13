@@ -1377,13 +1377,9 @@ void LiteQuery::finish_getAccountState(td::BufferSlice shard_proof) {
   if (acc_root.not_null()) {
     if (mode_ & 0x40000000) {
       vm::MerkleProofBuilder mpb{acc_root};
-      // account_none$0 = Account;
-      // account$1 addr:MsgAddressInt storage_stat:StorageInfo storage:AccountStorage = Account;
-      // account_storage$_ last_trans_lt:uint64 balance:CurrencyCollection state:AccountState = AccountStorage;
-      // account_active$1 _:StateInit = AccountState;
-      auto S = mpb.root()->load_cell();
-      if (S.is_error()) {
-        fatal_error(S.move_as_error_prefix("Failed to load account: "));
+      // This does not include code, data and libs into proof, but it includes extra currencies
+      if (!block::gen::t_Account.validate_ref(mpb.root())) {
+        fatal_error("failed to validate Account");
         return;
       }
       if (!mpb.extract_proof_to(acc_root)) {
@@ -1860,7 +1856,7 @@ void LiteQuery::perform_getConfigParams(BlockIdExt blkid, int mode, std::vector<
     request_mc_block_data_state(blkid);
   } else {
     // get configuration from previous key block
-    load_prevKeyBlock(blkid, [this, blkid, mode, param_list = std::move(param_list)](
+    load_prevKeyBlock(blkid, [this, mode, param_list = std::move(param_list)](
                                  td::Result<std::pair<BlockIdExt, Ref<BlockQ>>> res) mutable {
       if (res.is_error()) {
         this->abort_query(res.move_as_error());
@@ -2057,7 +2053,7 @@ void LiteQuery::perform_lookupBlockWithProof(BlockId blkid, BlockIdExt mc_blkid,
 
   ton::AccountIdPrefixFull pfx{blkid.workchain, blkid.shard};
   auto P = td::PromiseCreator::lambda(
-    [Self = actor_id(this), mc_blkid, manager = manager_, mode, pfx](td::Result<ConstBlockHandle> res) {
+    [Self = actor_id(this), mc_blkid, manager = manager_, pfx](td::Result<ConstBlockHandle> res) {
       if (res.is_error()) {
         td::actor::send_closure(Self, &LiteQuery::abort_query, res.move_as_error());
         return;
@@ -2073,7 +2069,7 @@ void LiteQuery::perform_lookupBlockWithProof(BlockId blkid, BlockIdExt mc_blkid,
       }
       LOG(DEBUG) << "requesting data for block " << handle->id().to_str();
       td::actor::send_closure_later(manager, &ValidatorManager::get_block_data_from_db, handle,
-                                    [Self, mc_ref_blkid = handle->masterchain_ref_block(), mc_blkid, pfx, mode](td::Result<Ref<BlockData>> res) {
+                                    [Self, mc_ref_blkid = handle->masterchain_ref_block(), pfx](td::Result<Ref<BlockData>> res) {
         if (res.is_error()) {
           td::actor::send_closure(Self, &LiteQuery::abort_query, res.move_as_error());
         } else {
