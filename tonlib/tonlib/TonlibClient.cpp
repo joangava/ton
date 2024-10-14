@@ -5110,7 +5110,7 @@ td::Status TonlibClient::do_request(tonlib_api::pchan_unpackPromise& request,
   return td::Status::OK();
 }
 
-td::Status TonlibClient::do_request(tonlib_api::sync& request,
+td::Status TonlibClient::do_request(const tonlib_api::sync& request,
                                     td::Promise<object_ptr<tonlib_api::ton_blockIdExt>>&& promise) {
   // ton.blockIdExt workchain:int32 shard:int64 seqno:int32 root_hash:bytes file_hash:bytes = ton.BlockIdExt;
   client_.with_last_block(
